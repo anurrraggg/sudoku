@@ -134,6 +134,34 @@
     outline: none;
 }
 
+.coffee-btn {
+    border-radius: 26.5px;
+    background-color: #FF6A00;
+    border: 1px solid #FF6A00;
+    box-shadow: 0 16px 22px -17px #FF6A00;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 20px;
+    padding: 12px 20px;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 999;
+    transition: all 0.3s ease;
+}
+
+.coffee-btn:hover {
+    background-color: #ffffff;
+    color: #FF6A00;
+    transform: scale(1.05);
+    box-shadow: 0 20px 25px -15px #FF6A00;
+}
+
+.coffee-btn:focus {
+    outline: none;
+}
+
 .floating-text {
     background-color: #001F61;
     border-radius: 10px 10px 0 0;
@@ -159,5 +187,10 @@
     }
     .floating-btn {
         right: 10px;
+    }
+    .coffee-btn {
+        left: 10px;
+        font-size: 14px;
+        padding: 10px 16px;
     }
 }
