@@ -1,6 +1,3 @@
-/* ----------------------------------------------- *
- * Based on: https://github.com/robatron/sudoku.js *
- * ----------------------------------------------- */
 
 function get_candidates(board) {
     /*

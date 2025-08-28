@@ -1,6 +1,3 @@
-/* ----------------------------------------------- *
- * Based on: https://github.com/robatron/sudoku.js *
- * ----------------------------------------------- */
 
 function board_string_to_grid(board_string) {
     /* Convert a board string to a two-dimensional array */

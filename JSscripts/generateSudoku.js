@@ -1,6 +1,3 @@
-/* ----------------------------------------------- *
- * Based on: https://github.com/robatron/sudoku.js *
- * ----------------------------------------------- */
 
 // Define difficulties by how many filled squares (cells) are given to the player in a new puzzle
 var DIFFICULTY = {
