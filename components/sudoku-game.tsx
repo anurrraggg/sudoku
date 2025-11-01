@@ -566,7 +566,7 @@ export default function SudokuGame() {
     className="bg-[rgb(var(--coffee-button))] hover:bg-[rgb(var(--coffee-button))]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
   >
     <a
-      href="upi://pay?pa=7268955274@ptsbi&pn=Anurag%20Pandey&cu=INR"
+      href="https://buymeacoffee.com/anurrraggg"
       target="_blank"
       rel="noopener noreferrer"
       className="flex items-center gap-2"
