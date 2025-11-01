@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Coffee, RotateCcw, Check, Zap, Sun, Moon, ChevronDown, Linkedin, Github } from "lucide-react"
+import { Coffee, RotateCcw, Check, Zap, Sun, Moon, ChevronDown, Linkedin, Github, CreditCard, Wallet } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 type Difficulty = "easy" | "medium" | "hard"
 type SudokuGrid = (number | null)[][]
@@ -35,6 +42,7 @@ export default function SudokuGame() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [showConnectDropdown, setShowConnectDropdown] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
 
   // Generate a complete valid Sudoku grid
   const generateCompleteGrid = useCallback((): SudokuGrid => {
@@ -560,22 +568,61 @@ export default function SudokuGame() {
 
       {/* Buy Me a Coffee Button */}
       <div className="fixed bottom-4 right-4">
-  <Button
-    asChild
-    size="sm"
-    className="bg-[rgb(var(--coffee-button))] hover:bg-[rgb(var(--coffee-button))]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-  >
-    <a
-      href="https://buymeacoffee.com/anurrraggg"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2"
-    >
-      <Coffee className="w-4 h-4" />
-      Buy Me a Coffee
-    </a>
-  </Button>
-</div>
+        <Button
+          size="sm"
+          onClick={() => setShowPaymentDialog(true)}
+          className="bg-[rgb(var(--coffee-button))] hover:bg-[rgb(var(--coffee-button))]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+        >
+          <Coffee className="w-4 h-4" />
+          Buy Me a Coffee
+        </Button>
+      </div>
+
+      {/* Payment Method Selection Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose Payment Method</DialogTitle>
+            <DialogDescription>
+              Select how you'd like to support me
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button
+              onClick={() => {
+                window.open("https://buymeacoffee.com/anurrraggg", "_blank", "noopener,noreferrer")
+                setShowPaymentDialog(false)
+              }}
+              className="w-full justify-start h-auto py-4 px-4"
+              variant="outline"
+            >
+              <div className="flex items-center gap-3 w-full">
+                <CreditCard className="w-5 h-5 text-primary" />
+                <div className="flex flex-col items-start">
+                  <span className="font-semibold">Card Payment</span>
+                  <span className="text-xs text-muted-foreground">Pay via Buy Me a Coffee</span>
+                </div>
+              </div>
+            </Button>
+            <Button
+              onClick={() => {
+                window.open("upi://pay?pa=7268955274@ptsbi&pn=Anurag%20Pandey&cu=INR", "_blank", "noopener,noreferrer")
+                setShowPaymentDialog(false)
+              }}
+              className="w-full justify-start h-auto py-4 px-4"
+              variant="outline"
+            >
+              <div className="flex items-center gap-3 w-full">
+                <Wallet className="w-5 h-5 text-primary" />
+                <div className="flex flex-col items-start">
+                  <span className="font-semibold">UPI Payment</span>
+                  <span className="text-xs text-muted-foreground">Pay directly via UPI app</span>
+                </div>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )
