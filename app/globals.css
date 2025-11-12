@@ -124,6 +124,8 @@
   --sudoku-cell-given-light: 249 250 251;
   --sudoku-border-thick-light: 71 85 105;
   --sudoku-border-thin-light: 203 213 225;
+  --sudoku-cell-related-light: 226 232 240;
+  --sudoku-cell-match-light: 191 219 254;
 
   --sudoku-cell-dark: 15 23 42;
   --sudoku-cell-hover-dark: 30 41 59;
@@ -132,6 +134,8 @@
   --sudoku-cell-given-dark: 51 65 85;
   --sudoku-border-thick-dark: 148 163 184;
   --sudoku-border-thin-dark: 51 65 85;
+  --sudoku-cell-related-dark: 30 41 59;
+  --sudoku-cell-match-dark: 59 130 246;
 
   --coffee-button: 245 158 11;
 
