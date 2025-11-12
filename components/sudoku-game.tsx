@@ -568,12 +568,7 @@ export default function SudokuGame() {
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="flex flex-col gap-6 rounded-3xl border border-border/40 bg-card/70 p-6 shadow-xl backdrop-blur sm:p-8 md:flex-row md:items-start md:justify-between">
           <div className="space-y-3 text-center md:text-left">
-            <Badge
-              variant="outline"
-              className="mx-auto w-fit border-primary/50 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary md:mx-0"
-            >
-              Polished Mode
-            </Badge>
+            
             <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl md:text-5xl">
               Sudoku Studio
             </h1>
