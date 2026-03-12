@@ -118,9 +118,7 @@ export default function SudokuGame() {
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
             Sudoku
           </h1>
-          <span className="text-xs font-medium text-primary/80 tracking-widest uppercase mt-1">
-            Studio Premium
-          </span>
+          
         </motion.div>
         
         <div className="flex items-center gap-3">
