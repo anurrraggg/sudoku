@@ -1,423 +1,58 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useState, useEffect } from "react"
+import { useSudoku } from "@/hooks/use-sudoku"
+import { Difficulty, DIFFICULTIES } from "@/lib/sudoku-logic"
+import { Board } from "./sudoku/board"
+import { Controls } from "./sudoku/controls"
+import { Numpad } from "./sudoku/numpad"
+import { StatsModal } from "./sudoku/stats-modal"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Coffee,
-  RotateCcw,
-  Check,
-  Zap,
-  Sun,
-  Moon,
-  ChevronDown,
-  Linkedin,
-  Github,
-  CreditCard,
-  Wallet,
-  Clock,
-  Pause,
-  Play,
-  Sparkles,
-  AlertTriangle,
-  Grid3x3,
-} from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-
-type Difficulty = "easy" | "medium" | "hard"
-type SudokuGrid = (number | null)[][]
-type SudokuState = {
-  puzzle: SudokuGrid
-  solution: SudokuGrid
-  userGrid: SudokuGrid
-  selectedCell: [number, number] | null
-  conflicts: Set<string>
-  isComplete: boolean
-}
-
-const DIFFICULTIES = {
-  easy: 40,
-  medium: 50,
-  hard: 60,
-} as const
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Sun, Moon, Play, Pause, RotateCcw } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function SudokuGame() {
-  const [gameState, setGameState] = useState<SudokuState>({
-    puzzle: [],
-    solution: [],
-    userGrid: [],
-    selectedCell: null,
-    conflicts: new Set(),
-    isComplete: false,
-  })
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium")
-  const [isGenerating, setIsGenerating] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
+  
   const [showConnectDropdown, setShowConnectDropdown] = useState(false)
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
-  const [mistakeCount, setMistakeCount] = useState(0)
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [elapsedTime, setElapsedTime] = useState(0)
-  const [isTimerRunning, setIsTimerRunning] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const startTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-    }
-    timerRef.current = window.setInterval(() => {
-      setElapsedTime((prev) => prev + 1)
-    }, 1000)
-    setIsTimerRunning(true)
-  }, [])
+  const {
+    difficulty,
+    setDifficulty,
+    puzzle,
+    userGrid,
+    notes,
+    conflicts,
+    mistakes,
+    selectedCells,
+    setSelectedCells,
+    notesMode,
+    isZenMode,
+    setIsZenMode,
+    gameMode,
+    isGenerating,
+    isComplete,
+    isPlaying,
+    time,
+    hints,
+    historySize,
+    redoSize,
+    generateGame,
+    startBuilderMode,
+    validateAndPlayBuilder,
+    selectCell,
+    inputNumber,
+    clearCell,
+    toggleNotesMode,
+    undo,
+    redo,
+    useHint,
+    restart,
+    toggleTimer
+  } = useSudoku("medium")
 
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-    setIsTimerRunning(false)
-  }, [])
-
-  const toggleTimer = () => {
-    if (isTimerRunning) {
-      stopTimer()
-    } else {
-      startTimer()
-    }
-  }
-
-  // Generate a complete valid Sudoku grid
-  const generateCompleteGrid = useCallback((): SudokuGrid => {
-    const grid: SudokuGrid = Array(9)
-      .fill(null)
-      .map(() => Array(9).fill(null))
-
-    const isValid = (grid: SudokuGrid, row: number, col: number, num: number): boolean => {
-      // Check row
-      for (let x = 0; x < 9; x++) {
-        if (grid[row][x] === num) return false
-      }
-
-      // Check column
-      for (let x = 0; x < 9; x++) {
-        if (grid[x][col] === num) return false
-      }
-
-      // Check 3x3 box
-      const startRow = row - (row % 3)
-      const startCol = col - (col % 3)
-      for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          if (grid[i + startRow][j + startCol] === num) return false
-        }
-      }
-
-      return true
-    }
-
-    const fillGrid = (grid: SudokuGrid): boolean => {
-      for (let row = 0; row < 9; row++) {
-        for (let col = 0; col < 9; col++) {
-          if (grid[row][col] === null) {
-            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5)
-            for (const num of numbers) {
-              if (isValid(grid, row, col, num)) {
-                grid[row][col] = num
-                if (fillGrid(grid)) return true
-                grid[row][col] = null
-              }
-            }
-            return false
-          }
-        }
-      }
-      return true
-    }
-
-    fillGrid(grid)
-    return grid
-  }, [])
-
-  // Create puzzle by removing numbers from complete grid
-  const createPuzzle = useCallback((completeGrid: SudokuGrid, cellsToRemove: number): SudokuGrid => {
-    const puzzle = completeGrid.map((row) => [...row])
-    const positions = []
-
-    for (let i = 0; i < 9; i++) {
-      for (let j = 0; j < 9; j++) {
-        positions.push([i, j])
-      }
-    }
-
-    positions.sort(() => Math.random() - 0.5)
-
-    for (let i = 0; i < cellsToRemove && i < positions.length; i++) {
-      const [row, col] = positions[i]
-      puzzle[row][col] = null
-    }
-
-    return puzzle
-  }, [])
-
-  // Generate new game
-  const generateNewGame = useCallback(
-    async (diff: Difficulty) => {
-      setIsGenerating(true)
-      stopTimer()
-      setElapsedTime(0)
-      setMistakeCount(0)
-      setHintsUsed(0)
-
-      // Add small delay for smooth UX
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
-      const solution = generateCompleteGrid()
-      const puzzle = createPuzzle(solution, DIFFICULTIES[diff])
-      const userGrid = puzzle.map((row) => [...row])
-
-      setGameState({
-        puzzle,
-        solution,
-        userGrid,
-        selectedCell: null,
-        conflicts: new Set(),
-        isComplete: false,
-      })
-
-      setIsGenerating(false)
-       startTimer()
-    },
-    [generateCompleteGrid, createPuzzle, startTimer, stopTimer],
-  )
-
-  // Check for conflicts
-  const findConflicts = useCallback((grid: SudokuGrid): Set<string> => {
-    const conflicts = new Set<string>()
-
-    for (let row = 0; row < 9; row++) {
-      for (let col = 0; col < 9; col++) {
-        const value = grid[row][col]
-        if (value === null) continue
-
-        // Check row conflicts
-        for (let c = 0; c < 9; c++) {
-          if (c !== col && grid[row][c] === value) {
-            conflicts.add(`${row}-${col}`)
-            conflicts.add(`${row}-${c}`)
-          }
-        }
-
-        // Check column conflicts
-        for (let r = 0; r < 9; r++) {
-          if (r !== row && grid[r][col] === value) {
-            conflicts.add(`${row}-${col}`)
-            conflicts.add(`${r}-${col}`)
-          }
-        }
-
-        // Check 3x3 box conflicts
-        const startRow = Math.floor(row / 3) * 3
-        const startCol = Math.floor(col / 3) * 3
-        for (let r = startRow; r < startRow + 3; r++) {
-          for (let c = startCol; c < startCol + 3; c++) {
-            if ((r !== row || c !== col) && grid[r][c] === value) {
-              conflicts.add(`${row}-${col}`)
-              conflicts.add(`${r}-${c}`)
-            }
-          }
-        }
-      }
-    }
-
-    return conflicts
-  }, [])
-
-  // Check if puzzle is complete
-  const checkComplete = useCallback((grid: SudokuGrid): boolean => {
-    for (let row = 0; row < 9; row++) {
-      for (let col = 0; col < 9; col++) {
-        if (grid[row][col] === null) return false
-      }
-    }
-    return true
-  }, [])
-
-  // Handle cell click
-  const handleCellClick = (row: number, col: number) => {
-    if (gameState.puzzle[row][col] !== null) return // Can't select given cells
-    setGameState((prev) => ({
-      ...prev,
-      selectedCell: [row, col],
-    }))
-  }
-
-  // Handle number input
-  const handleNumberInput = (num: number | null) => {
-    if (!gameState.selectedCell) return
-
-    const [row, col] = gameState.selectedCell
-    if (gameState.puzzle[row][col] !== null) return // Can't modify given cells
-
-    const newUserGrid = gameState.userGrid.map((r) => [...r])
-    newUserGrid[row][col] = num
-
-    if (num !== null && gameState.solution[row][col] !== num) {
-      setMistakeCount((prev) => prev + 1)
-    }
-
-    const conflicts = findConflicts(newUserGrid)
-    const isComplete = checkComplete(newUserGrid) && conflicts.size === 0
-
-    setGameState((prev) => ({
-      ...prev,
-      userGrid: newUserGrid,
-      conflicts,
-      isComplete,
-    }))
-
-    if (isComplete) {
-      stopTimer()
-    }
-  }
-
-  // Handle keyboard input
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (!gameState.selectedCell) return
-
-      const num = Number.parseInt(e.key)
-      if (num >= 1 && num <= 9) {
-        handleNumberInput(num)
-      } else if (e.key === "Backspace" || e.key === "Delete") {
-        handleNumberInput(null)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyPress)
-    return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [gameState.selectedCell])
-
-  // Auto-solve function
-  const autoSolve = () => {
-    setGameState((prev) => ({
-      ...prev,
-      userGrid: prev.solution.map((row) => [...row]),
-      conflicts: new Set(),
-      isComplete: true,
-      selectedCell: null,
-    }))
-    stopTimer()
-  }
-
-  // Check solution
-  const checkSolution = () => {
-    const conflicts = findConflicts(gameState.userGrid)
-    const isComplete = checkComplete(gameState.userGrid)
-
-    setGameState((prev) => ({
-      ...prev,
-      conflicts,
-      isComplete: isComplete && conflicts.size === 0,
-    }))
-
-    if (isComplete && conflicts.size === 0) {
-      stopTimer()
-    }
-  }
-
-  // Reset puzzle
-  const resetPuzzle = () => {
-    setGameState((prev) => ({
-      ...prev,
-      userGrid: prev.puzzle.map((row) => [...row]),
-      conflicts: new Set(),
-      isComplete: false,
-      selectedCell: null,
-    }))
-    setMistakeCount(0)
-    setHintsUsed(0)
-    setElapsedTime(0)
-    stopTimer()
-    startTimer()
-  }
-
-  const handleHint = () => {
-    const emptyCells: Array<[number, number]> = []
-
-    for (let row = 0; row < 9; row++) {
-      for (let col = 0; col < 9; col++) {
-        if (gameState.puzzle[row][col] === null && gameState.userGrid[row][col] === null) {
-          emptyCells.push([row, col])
-        }
-      }
-    }
-
-    if (emptyCells.length === 0) return
-
-    const [row, col] = emptyCells[Math.floor(Math.random() * emptyCells.length)]
-    const value = gameState.solution[row][col]
-    const newUserGrid = gameState.userGrid.map((r) => [...r])
-    newUserGrid[row][col] = value
-
-    const conflicts = findConflicts(newUserGrid)
-    const isComplete = checkComplete(newUserGrid) && conflicts.size === 0
-
-    setGameState((prev) => ({
-      ...prev,
-      userGrid: newUserGrid,
-      conflicts,
-      isComplete,
-      selectedCell: [row, col],
-    }))
-    setHintsUsed((prev) => prev + 1)
-
-    if (isComplete) {
-      stopTimer()
-    }
-  }
-
-  const cellsRemaining = useMemo(() => {
-    return gameState.userGrid.reduce((acc, row) => acc + row.filter((cell) => cell === null).length, 0)
-  }, [gameState.userGrid])
-
-  const completionPercentage = useMemo(() => {
-    return Math.round(((81 - cellsRemaining) / 81) * 100)
-  }, [cellsRemaining])
-
-  const canUseHint = useMemo(() => {
-    return cellsRemaining > 0 && !gameState.isComplete && !isGenerating
-  }, [cellsRemaining, gameState.isComplete, isGenerating])
-
-  const timerStatusLabel = useMemo(() => {
-    if (gameState.isComplete) return "Completed"
-    return isTimerRunning ? "Running" : "Paused"
-  }, [gameState.isComplete, isTimerRunning])
-
-  const selectedCellValue = useMemo(() => {
-    if (!gameState.selectedCell) return null
-    const [row, col] = gameState.selectedCell
-    return gameState.userGrid[row]?.[col] ?? null
-  }, [gameState.selectedCell, gameState.userGrid])
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
-
-  // Initialize game
-  useEffect(() => {
-    generateNewGame(difficulty)
-  }, [generateNewGame, difficulty])
-
+  // Theme toggle
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light"
     setTheme(newTheme)
@@ -434,6 +69,7 @@ export default function SudokuGame() {
     localStorage.setItem("sudoku-theme", theme)
   }, [theme])
 
+  // Handle outside click for Connect Dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
@@ -446,480 +82,315 @@ export default function SudokuGame() {
     return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
+  // Initialize first game automatically
   useEffect(() => {
-    return () => {
-      stopTimer()
-    }
-  }, [stopTimer])
+    generateGame(difficulty)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [difficulty])
 
-  const boardBorderClass =
-    theme === "dark"
-      ? "border-[rgb(var(--sudoku-border-thick-dark))]"
-      : "border-[rgb(var(--sudoku-border-thick-light))]"
+  // Keyboard support
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (selectedCells.length === 0 || isGenerating || isComplete || !isPlaying) return
 
-  const boardWrapperClass = theme === "dark" ? "bg-slate-950/60" : "bg-white/70"
-
-  const getCellClassName = (row: number, col: number) => {
-    const isSelected = gameState.selectedCell?.[0] === row && gameState.selectedCell?.[1] === col
-    const isGiven = gameState.puzzle[row][col] !== null
-    const hasConflict = gameState.conflicts.has(`${row}-${col}`)
-    const isComplete = gameState.isComplete
-    const cellValue = gameState.userGrid[row]?.[col] ?? null
-    const isSameRow = gameState.selectedCell?.[0] === row
-    const isSameCol = gameState.selectedCell?.[1] === col
-    const isSameBox =
-      gameState.selectedCell &&
-      Math.floor(gameState.selectedCell[0] / 3) === Math.floor(row / 3) &&
-      Math.floor(gameState.selectedCell[1] / 3) === Math.floor(col / 3)
-    const isRelated = !isSelected && (isSameRow || isSameCol || isSameBox)
-    const isMatchingValue = selectedCellValue !== null && selectedCellValue === cellValue && cellValue !== null
-
-    let className =
-      "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center text-base sm:text-lg md:text-xl font-mono cursor-pointer transition-all duration-200 border select-none"
-
-    // Background colors with theme support
-    if (hasConflict) {
-      className +=
-        theme === "dark"
-          ? "bg-[rgb(var(--sudoku-cell-conflict-dark))] "
-          : "bg-[rgb(var(--sudoku-cell-conflict-light))] "
-    } else if (isSelected) {
-      className +=
-        theme === "dark"
-          ? "bg-[rgb(var(--sudoku-cell-selected-dark))] "
-          : "bg-[rgb(var(--sudoku-cell-selected-light))] "
-    } else if (isGiven) {
-      className +=
-        theme === "dark" ? "bg-[rgb(var(--sudoku-cell-given-dark))] " : "bg-[rgb(var(--sudoku-cell-given-light))] "
-    } else {
-      className +=
-        theme === "dark"
-          ? "bg-[rgb(var(--sudoku-cell-dark))] hover:bg-[rgb(var(--sudoku-cell-hover-dark))] "
-          : "bg-[rgb(var(--sudoku-cell-light))] hover:bg-[rgb(var(--sudoku-cell-hover-light))] "
-    }
-
-    if (!hasConflict && !isSelected) {
-      if (isMatchingValue) {
-        className +=
-          theme === "dark"
-            ? "bg-[rgb(var(--sudoku-cell-match-dark))] ring-2 ring-primary/40 "
-            : "bg-[rgb(var(--sudoku-cell-match-light))] ring-2 ring-primary/40 "
-      } else if (isRelated) {
-        className +=
-          theme === "dark"
-            ? "bg-[rgb(var(--sudoku-cell-related-dark))] "
-            : "bg-[rgb(var(--sudoku-cell-related-light))] "
+      const num = Number.parseInt(e.key)
+      if (num >= 1 && num <= 9) {
+        inputNumber(num)
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        clearCell()
       }
     }
 
-    // Enhanced text colors for better visibility
-    if (isGiven) {
-      className += "text-foreground font-bold "
-    } else {
-      className += "text-foreground font-medium "
-    }
+    window.addEventListener("keydown", handleKeyPress)
+    return () => window.removeEventListener("keydown", handleKeyPress)
+  }, [selectedCells, inputNumber, clearCell, isGenerating, isComplete, isPlaying])
 
-    // Borders with theme support
-    className +=
-      theme === "dark"
-        ? "border-[rgb(var(--sudoku-border-thin-dark))] "
-        : "border-[rgb(var(--sudoku-border-thin-light))] "
-
-    // Thick borders for 3x3 sections
-    const thickBorderColor =
-      theme === "dark"
-        ? "border-[rgb(var(--sudoku-border-thick-dark))]"
-        : "border-[rgb(var(--sudoku-border-thick-light))]"
-
-    if (row % 3 === 0) className += `border-t-2 ${thickBorderColor} `
-    if (col % 3 === 0) className += `border-l-2 ${thickBorderColor} `
-    if (row === 8) className += `border-b-2 ${thickBorderColor} `
-    if (col === 8) className += `border-r-2 ${thickBorderColor} `
-
-    // Completion effect
-    if (isComplete) {
-      className += "animate-pulse "
-    }
-
-    return className
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
   return (
-    <div
-      className={`relative min-h-screen overflow-hidden px-4 py-12 sm:py-16 transition-colors duration-500 ${
-        theme === "dark"
-          ? "bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_rgba(15,23,42,0.96))]"
-          : "bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.2),_rgba(248,250,252,0.98))]"
-      }`}
-    >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className={`absolute left-1/2 top-[-140px] h-80 w-80 -translate-x-1/2 rounded-full blur-3xl opacity-60 ${
-            theme === "dark" ? "bg-primary/40" : "bg-primary/25"
-          }`}
-        />
-        <div
-          className={`absolute bottom-[-160px] right-[-80px] h-96 w-96 rounded-full blur-3xl opacity-40 ${
-            theme === "dark" ? "bg-emerald-500/30" : "bg-sky-300/30"
-          }`}
-        />
-      </div>
+    <div className="relative min-h-screen pt-4 pb-12 px-2 md:px-6 flex flex-col items-center transition-all duration-700">
+      <header className={`w-full max-w-5xl flex justify-between items-center py-6 mb-2 px-4 md:px-0 transition-opacity duration-500 ${isZenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col">
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+            Sudoku
+          </h1>
+          <span className="text-xs font-medium text-primary/80 tracking-widest uppercase mt-1">
+            Studio Premium
+          </span>
+        </motion.div>
+        
+        <div className="flex items-center gap-3">
+          <StatsModal />
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsZenMode(true)}
+            className="shadow-sm hover:shadow-md bg-background/50 backdrop-blur-md border-border/80 mr-2 rounded-xl"
+            title="Focus Mode"
+          >
+            Zen Mode
+          </Button>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-8">
-        <header className="flex flex-col gap-6 rounded-3xl border border-border/40 bg-card/70 p-6 shadow-xl backdrop-blur sm:p-8 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-3 text-center md:text-left">
-            
-            <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl md:text-5xl">
-              Sudoku Studio
-            </h1>
+          <div className="relative connect-dropdown z-50">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConnectDropdown((prev) => !prev)}
+              className="shadow-sm hover:shadow-md bg-background/50 backdrop-blur-md border-border/80"
+            >
+              Connect
+            </Button>
+            {showConnectDropdown && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-2xl border border-border/50 bg-card/95 p-1 shadow-2xl backdrop-blur-md animate-in slide-in-from-top-2 fade-in duration-200">
+                <a
+                  href="https://www.linkedin.com/in/anurrraggg/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit LinkedIn profile"
+                  className="block"
+                  onClick={() => setShowConnectDropdown(false)}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start px-3 py-2 text-sm hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] dark:hover:bg-[#0A66C2]/20 dark:hover:text-[#4298e1] rounded-xl transition-colors"
+                  >
+                    LinkedIn
+                  </Button>
+                </a>
+                <a
+                  href="https://github.com/anurrraggg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit GitHub profile"
+                  className="block"
+                  onClick={() => setShowConnectDropdown(false)}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start px-3 py-2 text-sm hover:bg-slate-200/50 hover:text-slate-900 dark:hover:bg-slate-800/60 dark:hover:text-white rounded-xl transition-colors"
+                  >
+                    GitHub
+                  </Button>
+                </a>
+                <a
+                  href="https://x.com/anurrraggg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit Twitter/X profile"
+                  className="block"
+                  onClick={() => setShowConnectDropdown(false)}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start px-3 py-2 text-sm hover:bg-slate-200/50 hover:text-slate-900 dark:hover:bg-slate-800/60 dark:hover:text-white rounded-xl transition-colors"
+                  >
+                    X (Twitter)
+                  </Button>
+                </a>
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 md:justify-end">
-            <div className="relative connect-dropdown">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowConnectDropdown((prev) => !prev)}
-                className="shadow-md"
-              >
-                Connect
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-              {showConnectDropdown && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-xl border border-border/60 bg-card/95 p-1 shadow-2xl backdrop-blur animate-slide-down">
-                  <a
-                    href="https://www.linkedin.com/in/anurrraggg/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Visit LinkedIn profile"
-                    className="block"
-                    onClick={() => setShowConnectDropdown(false)}
+
+           <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleTheme}
+            className="rounded-full w-10 h-10 shadow-sm hover:shadow-md bg-background/50 backdrop-blur-md border-border/80"
+          >
+            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          </Button>
+        </div>
+      </header>
+
+      <main className={`w-full max-w-5xl grid gap-10 lg:gap-14 items-start px-2 md:px-0 transition-all duration-700 ${isZenMode ? 'lg:grid-cols-1 place-items-center mt-10' : 'lg:grid-cols-[1fr_360px]'}`}>
+        
+        {/* ZEN MODE EXIT BUTTON */}
+        {isZenMode && (
+          <div className="absolute top-8 left-8 z-50">
+            <Button variant="ghost" className="opacity-50 hover:opacity-100" onClick={() => setIsZenMode(false)}>
+              Exit Zen Mode
+            </Button>
+          </div>
+        )}
+
+        {/* LEFT COLUMN: BOARD & CONTROLS */}
+        <div className="flex flex-col gap-6 w-full items-center">
+          <div className={`flex justify-between items-end w-full max-w-[28rem] px-2 mb-1 transition-opacity duration-500 ${isZenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <div className="flex gap-6 items-center">
+               <div className="flex flex-col">
+                 <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-1">Mistakes</span>
+                 <span className="text-xl font-mono font-medium leading-none tabular-nums text-foreground/90">{mistakes}/3</span>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {gameMode === "builder" ? (
+                <Button 
+                  onClick={validateAndPlayBuilder}
+                  disabled={isGenerating}
+                  className="rounded-full h-10 px-6 font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all bg-gradient-to-r from-primary to-blue-600 text-primary-foreground"
+                >
+                  Validate & Play
+                </Button>
+              ) : (
+                <>
+                  <span className="text-3xl font-mono tracking-wider font-light tabular-nums text-foreground/90">{formatTime(time)}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={toggleTimer} 
+                    disabled={isGenerating || isComplete}
+                    className="rounded-full h-10 w-10 bg-primary/5 hover:bg-primary/15 text-primary transition-colors"
                   >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start px-3 py-2 text-sm ${
-                        theme === "dark"
-                          ? "hover:bg-blue-900/50 hover:text-blue-100"
-                          : "hover:bg-blue-100 hover:text-blue-800"
-                      }`}
-                    >
-                      <Linkedin className="mr-2 h-4 w-4" />
-                      LinkedIn
-                    </Button>
-                  </a>
-                  <a
-                    href="https://github.com/anurrraggg"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Visit GitHub profile"
-                    className="block"
-                    onClick={() => setShowConnectDropdown(false)}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start px-3 py-2 text-sm ${
-                        theme === "dark"
-                          ? "hover:bg-slate-800/60 hover:text-white"
-                          : "hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                    >
-                      <Github className="mr-2 h-4 w-4" />
-                      GitHub
-                    </Button>
-                  </a>
-                  <a
-                    href="https://x.com/anurrraggg"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Visit Twitter/X profile"
-                    className="block"
-                    onClick={() => setShowConnectDropdown(false)}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start px-3 py-2 text-sm ${
-                        theme === "dark"
-                          ? "hover:bg-slate-900/60 hover:text-white"
-                          : "hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                    >
-                      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                      </svg>
-                      X (Twitter)
-                    </Button>
-                  </a>
-                </div>
+                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" fill="currentColor" />}
+                  </Button>
+                </>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="h-10 w-10 rounded-full border-border/70 bg-background/60 shadow-md backdrop-blur"
-            >
-              {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            </Button>
           </div>
-        </header>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
-          <Card className="border-border/60 bg-card/80 shadow-2xl backdrop-blur">
-            <CardHeader className="gap-5 pb-0">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <CardTitle className="text-xl font-semibold">Daily challenge</CardTitle>
-                <Badge variant="secondary" className="capitalize">
-                  {difficulty}
-                </Badge>
-              </div>
-              <CardDescription>
-                Pick a difficulty, immerse yourself in the flow, and enjoy responsive feedback every step of the way.
-              </CardDescription>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {(Object.keys(DIFFICULTIES) as Difficulty[]).map((diff) => (
-                  <Button
-                    key={diff}
-                    variant={difficulty === diff ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setDifficulty(diff)}
-                    disabled={isGenerating}
-                    className="capitalize"
-                  >
-                    {diff}
-                  </Button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="flex justify-center">
-                <div className={`relative min-w-[18rem] rounded-3xl border border-border/50 ${boardWrapperClass} p-3 shadow-inner sm:min-w-[22rem] md:min-w-[26rem]`}>
-                  {isGenerating ? (
-                    <div className="flex h-[18rem] items-center justify-center sm:h-[22rem] md:h-[26rem]">
-                      <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
-                    </div>
-                  ) : (
-                    <div
-                      className={`grid grid-cols-9 gap-0 overflow-hidden rounded-2xl border-2 ${boardBorderClass} bg-background/20 shadow-inner`}
-                    >
-                      {gameState.userGrid.map((row, rowIndex) =>
-                        row.map((cell, colIndex) => (
-                          <div
-                            key={`${rowIndex}-${colIndex}`}
-                            className={getCellClassName(rowIndex, colIndex)}
-                            onClick={() => handleCellClick(rowIndex, colIndex)}
-                          >
-                            {cell || ""}
-                          </div>
-                        )),
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="relative w-full flex justify-center">
+             {isGenerating ? (
+               <div className="w-full max-w-[28rem] aspect-square flex items-center justify-center rounded-xl border-2 border-border/40 bg-card/10 backdrop-blur-sm">
+                  <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+               </div>
+             ) : (
+               <Board 
+                 puzzle={puzzle}
+                 userGrid={userGrid}
+                 notes={notes}
+                 selectedCells={selectedCells}
+                 setSelectedCells={setSelectedCells}
+                 conflicts={conflicts}
+                 isComplete={isComplete}
+               />
+             )}
 
-              {gameState.selectedCell ? (
-                <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <Button
-                      key={num}
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleNumberInput(num)}
-                      className="h-10 w-full font-mono font-semibold"
-                    >
-                      {num}
-                    </Button>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleNumberInput(null)}
-                    className="h-10 w-full font-semibold"
-                  >
-                    Clear
-                  </Button>
+             {!isPlaying && !isComplete && !isGenerating && gameMode !== "builder" && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/50 backdrop-blur-md rounded-xl max-w-[28rem] mx-auto aspect-square border border-border/20">
+                   <Button size="lg" className="rounded-full shadow-2xl px-10 h-14 text-lg font-semibold" onClick={toggleTimer}>
+                     <Play className="mr-3 h-5 w-5" fill="currentColor" /> Resume Game
+                   </Button>
                 </div>
-              ) : (
-                <p className="text-center text-sm text-muted-foreground">Tap an empty tile to open the number palette.</p>
-              )}
+             )}
+          </div>
 
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button onClick={() => generateNewGame(difficulty)} disabled={isGenerating} variant="outline" size="sm">
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  New Game
-                </Button>
-                <Button onClick={checkSolution} variant="outline" size="sm" disabled={isGenerating}>
-                  <Check className="mr-2 h-4 w-4" />
-                  Check
-                </Button>
-                <Button onClick={handleHint} variant="outline" size="sm" disabled={!canUseHint}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Hint
-                </Button>
-                <Button onClick={autoSolve} variant="outline" size="sm" disabled={isGenerating}>
-                  <Zap className="mr-2 h-4 w-4" />
-                  Solve
-                </Button>
-                <Button onClick={resetPuzzle} variant="outline" size="sm" disabled={isGenerating}>
-                  Reset
-                </Button>
-                <Button
-                  onClick={toggleTimer}
-                  variant="outline"
-                  size="sm"
-                  disabled={isGenerating || gameState.isComplete}
-                >
-                  {isTimerRunning ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
-                  {isTimerRunning ? "Pause" : "Resume"}
-                </Button>
-              </div>
+          <div className={`transition-opacity duration-500 w-full flex flex-col items-center gap-6 ${isZenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <Controls 
+              notesMode={notesMode}
+              toggleNotesMode={toggleNotesMode}
+              clearCell={clearCell}
+              undo={undo}
+              redo={redo}
+              useHint={useHint}
+              historySize={historySize}
+              redoSize={redoSize}
+            />
 
-              <div className="rounded-2xl border border-border/50 bg-background/60 p-4 text-center shadow-inner">
-                <p className="text-sm text-muted-foreground">Progress</p>
-                <div className="mt-2 text-3xl font-bold">{completionPercentage}%</div>
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: `${completionPercentage}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {cellsRemaining === 0 ? "Board complete. Great job!" : `${cellsRemaining} cells remaining`}
-                </p>
-              </div>
-
-              {gameState.isComplete && (
-                <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-center shadow-lg">
-                  <h2 className="text-2xl font-bold text-primary">🎉 Congratulations!</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    You solved this board in {formatTime(elapsedTime)} with {mistakeCount} mistake
-                    {mistakeCount === 1 ? "" : "s"} and {hintsUsed} hint{hintsUsed === 1 ? "" : "s"}.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-col gap-4">
-            <Card className="border-border/60 bg-card/80 shadow-xl backdrop-blur">
-              <CardHeader className="pb-0">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold">Session stats</CardTitle>
-                  <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                    Live
-                  </Badge>
-                </div>
-                <CardDescription>Keep an eye on your rhythm and course-correct quickly.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 pt-6">
-                <div className="rounded-xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Clock className="h-4 w-4 text-primary" />
-                    Time
-                  </div>
-                  <div className="mt-2 text-2xl font-bold">{formatTime(elapsedTime)}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">{timerStatusLabel}</p>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                    Mistakes
-                  </div>
-                  <div className="mt-2 text-2xl font-bold">{mistakeCount}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">Try to stay under 3 for a perfect run.</p>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    Hints
-                  </div>
-                  <div className="mt-2 text-2xl font-bold">{hintsUsed}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {hintsUsed === 0 ? "Clean solve in progress." : "Hints used to keep momentum."}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Grid3x3 className="h-4 w-4 text-primary" />
-                    Cells left
-                  </div>
-                  <div className="mt-2 text-2xl font-bold">{cellsRemaining}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">Fill the board to hit 100% completion.</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60 bg-card/80 shadow-xl backdrop-blur">
-              <CardHeader className="pb-0">
-                <CardTitle className="text-lg font-semibold">Quick tips</CardTitle>
-                <CardDescription>Make faster deductions with these pro moves.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-6 text-sm text-muted-foreground">
-                <p>- Trace the highlighted row, column, and box to eliminate options quickly.</p>
-                <p>- Tap any filled tile to spotlight identical numbers across the board.</p>
-                <p>- Use hints sparingly - each hint reveals a guaranteed correct value.</p>
-                <p>- Pause the run anytime to take a breather; your progress stays intact.</p>
-              </CardContent>
-            </Card>
+            <Numpad inputNumber={inputNumber} disabled={!isPlaying || isComplete || isGenerating} />
           </div>
         </div>
-      </div>
 
-      <div className="fixed bottom-6 right-6 z-20">
-        <Button
-          size="sm"
-          onClick={() => setShowPaymentDialog(true)}
-          className="bg-[rgb(var(--coffee-button))] text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[rgb(var(--coffee-button))]/90 hover:shadow-2xl"
-        >
-          <Coffee className="mr-2 h-4 w-4" />
-          Buy Me a Coffee
-        </Button>
-      </div>
+        {/* RIGHT COLUMN: SETTINGS & STATS */}
+        <div className={`flex flex-col gap-6 w-full lg:sticky lg:top-8 mt-8 lg:mt-0 transition-opacity duration-500 ${isZenMode ? 'hidden' : 'opacity-100'}`}>
+           <Card className="border-border/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card/40 backdrop-blur-xl rounded-[2rem] overflow-hidden">
+             <CardHeader className="pb-4 bg-muted/30 border-b border-border/20 px-8 pt-8">
+               <CardTitle className="text-xl font-bold">Game Setup</CardTitle>
+               <CardDescription className="text-sm mt-1">Select your challenge level</CardDescription>
+             </CardHeader>
+             <CardContent className="pt-8 px-8 flex flex-col gap-8">
+                <div className="grid grid-cols-3 gap-2 p-1.5 bg-muted/40 rounded-2xl border border-border/40">
+                  {(Object.keys(DIFFICULTIES) as Difficulty[]).map((diff) => (
+                    <button
+                      key={diff}
+                      onClick={() => setDifficulty(diff)}
+                      className={`py-3 px-2 text-sm font-semibold rounded-xl capitalize transition-all duration-300 ${
+                        difficulty === diff 
+                          ? 'bg-background shadow-md text-foreground border border-border/20' 
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
+                      }`}
+                    >
+                      {diff}
+                    </button>
+                  ))}
+                </div>
 
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Choose Payment Method</DialogTitle>
-            <DialogDescription>Select how you'd like to support me.</DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 flex flex-col gap-3">
-            <Button
-              onClick={() => {
-                window.open("https://buymeacoffee.com/anurrraggg", "_blank", "noopener,noreferrer")
-                setShowPaymentDialog(false)
-              }}
-              className="w-full justify-start py-4"
-              variant="outline"
-            >
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-5 w-5 text-primary" />
-                <div className="flex flex-col items-start">
-                  <span className="font-semibold">Card Payment</span>
-                  <span className="text-xs text-muted-foreground">Pay via Buy Me a Coffee</span>
+                <div className="flex flex-col gap-3">
+                  <Button 
+                    className={`w-full rounded-2xl h-14 text-base font-bold shadow-lg active:scale-[0.98] transition-all ${gameMode === "classic" ? 'shadow-primary/20' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                    onClick={() => generateGame(difficulty, "classic")}
+                    disabled={isGenerating}
+                  >
+                    Play Classic
+                  </Button>
+                  <Button 
+                    className={`w-full rounded-2xl h-14 text-base font-bold shadow-lg active:scale-[0.98] transition-all bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white ${gameMode === "daily" ? 'ring-2 ring-offset-2 ring-purple-500 ring-offset-background' : ''}`}
+                    onClick={() => generateGame("hard", "daily")}
+                    disabled={isGenerating}
+                  >
+                    Daily Challenge
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className={`w-full rounded-2xl h-14 text-base font-bold shadow-sm active:scale-[0.98] transition-all border-border/60 ${gameMode === "builder" ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent hover:bg-muted/30'}`}
+                    onClick={startBuilderMode}
+                    disabled={isGenerating}
+                  >
+                    Custom Builder
+                  </Button>
+                  {gameMode !== "builder" && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full rounded-2xl h-14 text-base font-semibold active:scale-[0.98] transition-all border-border/60 bg-transparent hover:bg-muted/30 mt-2"
+                      onClick={restart}
+                      disabled={isGenerating}
+                    >
+                      <RotateCcw className="mr-2 h-5 w-5" /> Restart Puzzle
+                    </Button>
+                  )}
                 </div>
-              </div>
-            </Button>
-            <Button
-              onClick={() => {
-                window.open("upi://pay?pa=7268955274@ptsbi&pn=Anurag%20Pandey&cu=INR", "_blank", "noopener,noreferrer")
-                setShowPaymentDialog(false)
-              }}
-              className="w-full justify-start py-4"
-              variant="outline"
-            >
-              <div className="flex items-center gap-3">
-                <Wallet className="h-5 w-5 text-primary" />
-                <div className="flex flex-col items-start">
-                  <span className="font-semibold">UPI Payment</span>
-                  <span className="text-xs text-muted-foreground">Pay directly via UPI app</span>
-                </div>
-              </div>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+             </CardContent>
+           </Card>
+
+           {isComplete && (
+             <motion.div
+               initial={{ opacity: 0, scale: 0.95, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               transition={{ type: "spring", stiffness: 400, damping: 25 }}
+             >
+               <Card className="border-primary/20 bg-gradient-to-br from-primary/10 to-transparent shadow-xl rounded-[2rem] overflow-hidden">
+                 <CardContent className="pt-8 pb-8 px-8 flex flex-col items-center text-center gap-3">
+                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-2">
+                      <span className="text-3xl">🏆</span>
+                    </div>
+                    <h3 className="text-2xl font-black bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Victory!</h3>
+                    <p className="text-sm text-muted-foreground font-medium">
+                      You conquered the {difficulty} puzzle in {formatTime(time)}.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 w-full mt-6">
+                      <div className="bg-background border border-border/30 shadow-sm rounded-2xl p-4 flex flex-col items-center">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Mistakes</span>
+                        <span className="text-2xl font-mono font-medium">{mistakes}</span>
+                      </div>
+                      <div className="bg-background border border-border/30 shadow-sm rounded-2xl p-4 flex flex-col items-center">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Hints Used</span>
+                        <span className="text-2xl font-mono font-medium">{hints}</span>
+                      </div>
+                    </div>
+                 </CardContent>
+               </Card>
+             </motion.div>
+           )}
+        </div>
+      </main>
     </div>
   )
 }
