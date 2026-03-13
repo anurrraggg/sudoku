@@ -114,7 +114,7 @@ export default function SudokuGame() {
   }
 
   return (
-    <div className="relative min-h-screen pt-4 pb-12 px-2 md:px-6 flex flex-col items-center transition-all duration-700">
+    <div className="relative min-h-screen pt-4 pb-[env(safe-area-inset-bottom)] px-2 md:px-6 flex flex-col items-center transition-all duration-700">
       <header className={`w-full max-w-5xl flex justify-between items-center py-6 mb-2 px-4 md:px-0 transition-opacity duration-500 ${isZenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col">
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
@@ -273,15 +273,17 @@ export default function SudokuGame() {
                   <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
                </div>
              ) : (
-               <Board 
-                 puzzle={puzzle}
-                 userGrid={userGrid}
-                 notes={notes}
-                 selectedCells={selectedCells}
-                 setSelectedCells={setSelectedCells}
-                 conflicts={conflicts}
-                 isComplete={isComplete}
-               />
+               <div onContextMenu={(e) => e.preventDefault()} className="w-full">
+                 <Board 
+                   puzzle={puzzle}
+                   userGrid={userGrid}
+                   notes={notes}
+                   selectedCells={selectedCells}
+                   setSelectedCells={setSelectedCells}
+                   conflicts={conflicts}
+                   isComplete={isComplete}
+                 />
+               </div>
              )}
 
              {!isPlaying && !isComplete && !isGenerating && gameMode !== "builder" && (

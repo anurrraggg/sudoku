@@ -62,6 +62,8 @@ export const Cell = memo(({
 
   return (
     <motion.div
+      data-row={row}
+      data-col={col}
       onPointerDown={(e) => {
         // Only react to main button click
         if (e.button === 0) onPointerDown();

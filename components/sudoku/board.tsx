@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { Cell } from './cell';
 import { NotesGrid } from '@/hooks/use-sudoku';
 import { SudokuGrid } from '@/lib/sudoku-logic';
@@ -9,7 +9,7 @@ interface BoardProps {
   userGrid: SudokuGrid;
   notes: NotesGrid;
   selectedCells: [number, number][];
-  setSelectedCells: (cells: [number, number][]) => void;
+  setSelectedCells: React.Dispatch<React.SetStateAction<[number, number][]>>;
   conflicts: Set<string>;
   isComplete: boolean;
 }
@@ -32,10 +32,12 @@ export const Board = ({
 
   // Local drag state
   const isDragging = useRef(false);
+  const lastTouchedCell = useRef<string | null>(null);
 
   useEffect(() => {
     const handlePointerUp = () => {
       isDragging.current = false;
+      lastTouchedCell.current = null;
     };
     window.addEventListener('pointerup', handlePointerUp);
     return () => window.removeEventListener('pointerup', handlePointerUp);
@@ -44,20 +46,44 @@ export const Board = ({
   const handlePointerDown = (row: number, col: number) => {
     if (isComplete) return;
     isDragging.current = true;
+    lastTouchedCell.current = `${row}-${col}`;
     setSelectedCells([[row, col]]);
   };
 
-  const handlePointerEnter = (row: number, col: number) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current || isComplete) return;
-    // Append to selection if not already selected
-    const alreadySelected = selectedCells.some(c => c[0] === row && c[1] === col);
-    if (!alreadySelected) {
-      setSelectedCells([...selectedCells, [row, col]]);
+
+    // document.elementFromPoint is essential for touch dragging
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el) return;
+
+    const cellEl = el.closest('[data-row]') as HTMLElement;
+    if (cellEl) {
+      const row = parseInt(cellEl.dataset.row || '-1', 10);
+      const col = parseInt(cellEl.dataset.col || '-1', 10);
+
+      if (row >= 0 && col >= 0) {
+        const cellId = `${row}-${col}`;
+        if (lastTouchedCell.current !== cellId) {
+          lastTouchedCell.current = cellId;
+          
+          setSelectedCells((prev: [number, number][]) => {
+            const alreadySelected = prev.some((c: [number, number]) => c[0] === row && c[1] === col);
+            if (!alreadySelected) {
+              return [...prev, [row, col]];
+            }
+            return prev;
+          });
+        }
+      }
     }
   };
 
   return (
-    <div className="relative w-full max-w-[28rem] mx-auto aspect-square select-none touch-none">
+    <div 
+      className="relative w-full max-w-[28rem] mx-auto aspect-square select-none touch-none"
+      onPointerMove={handlePointerMove}
+    >
       <motion.div 
         className="w-full h-full grid grid-cols-9 grid-rows-9 bg-background shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden rounded-xl border-[3px] border-[var(--color-sudoku-block)]"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -98,7 +124,7 @@ export const Board = ({
                 isMatch={isMatch}
                 hasConflict={hasConflict}
                 onPointerDown={() => handlePointerDown(rowIndex, colIndex)}
-                onPointerEnter={() => handlePointerEnter(rowIndex, colIndex)}
+                onPointerEnter={() => {}} // Kept for compatibility, actual work done in board's onPointerMove
               />
             );
           })

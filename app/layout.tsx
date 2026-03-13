@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Anurag's Sudoku",
   description: ' A simple and elegant Sudoku game built with Next.js and Geist UI.',
   generator: ' Next.js',
+  manifest: "/manifest.json",
 }
 
 export const viewport: Viewport = {
@@ -16,6 +17,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" }
+  ],
 }
 
 export default function RootLayout({

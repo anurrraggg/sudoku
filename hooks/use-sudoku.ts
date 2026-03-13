@@ -68,19 +68,35 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
   const [hints, setHints] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wakeLockRef = useRef<any>(null); // Type any for WakeLockSentinel as it might not be in all TS DOM lib versions
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback(async () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTime(prev => prev + 1);
     }, 1000);
     setIsPlaying(true);
+
+    // Request Wake Lock
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (err) {
+      console.warn('Wake Lock request failed:', err);
+    }
   }, []);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
     setIsPlaying(false);
+
+    // Release Wake Lock
+    if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(console.warn);
+        wakeLockRef.current = null;
+    }
   }, []);
 
   const toggleTimer = useCallback(() => {
@@ -102,6 +118,21 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
   useEffect(() => {
     return stopTimer;
   }, [stopTimer]);
+
+  // Handle visibility change to re-request Wake Lock if we are playing
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+        if (wakeLockRef.current !== null && document.visibilityState === 'visible' && isPlaying) {
+            try {
+                wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+            } catch (err) {
+                console.warn('Wake Lock request failed on visibility change:', err);
+            }
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isPlaying]);
 
   const initEmptyNotes = useCallback(() => {
     return Array.from({ length: 9 }, () =>
