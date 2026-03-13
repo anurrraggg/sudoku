@@ -7,9 +7,18 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: "Anurag's Sudoku",
-  description: ' A simple and elegant Sudoku game built with Next.js and Geist UI.',
-  generator: ' Next.js',
-  manifest: "/manifest.json",
+  description: 'A simple and elegant Sudoku game built with Next.js.',
+  generator: 'Next.js',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: "Anurag's Sudoku",
+  },
+  icons: {
+    apple: '/icons/apple-touch-icon.png',
+    icon: '/icons/icon-192.png',
+  },
 }
 
 export const viewport: Viewport = {
@@ -17,9 +26,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',          // handles iPhone notch / Dynamic Island
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" }
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)',  color: '#09090b' },
   ],
 }
 

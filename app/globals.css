@@ -122,9 +122,18 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Eliminate 300ms tap delay on touch screens */
+    touch-action: manipulation;
   }
   body {
     @apply bg-background text-foreground transition-colors duration-500 antialiased selection:bg-primary/20 selection:text-primary;
+    /* Prevent iOS rubber-band scroll when in standalone PWA mode */
+    overscroll-behavior: none;
+    /* Respect iOS safe-area insets (notch / Dynamic Island / home bar) */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 

@@ -84,6 +84,13 @@ export default function SudokuGame() {
     return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
+  // Register service worker for PWA offline support
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
+
   // Initialize first game automatically
   useEffect(() => {
     generateGame(difficulty)
@@ -114,29 +121,31 @@ export default function SudokuGame() {
   }
 
   return (
-    <div className="relative min-h-screen pt-4 pb-[env(safe-area-inset-bottom)] px-2 md:px-6 flex flex-col items-center transition-all duration-700">
-      <header className={`w-full max-w-5xl flex justify-between items-center py-6 mb-2 px-4 md:px-0 transition-opacity duration-500 ${isZenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+    <div className="relative min-h-screen pt-4 pb-[env(safe-area-inset-bottom)] px-2 md:px-6 flex flex-col items-center transition-all duration-700 overscroll-none">
+      <header className={`w-full max-w-5xl flex justify-between items-center py-4 md:py-6 mb-2 px-4 md:px-0 transition-opacity duration-500 ${isZenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col">
-          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
             Sudoku
           </h1>
           
         </motion.div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 md:gap-3">
           <StatsModal />
           
+          {/* Zen Mode — hidden on mobile to prevent header overflow */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsZenMode(true)}
-            className="shadow-sm hover:shadow-md bg-background/50 backdrop-blur-md border-border/80 mr-2 rounded-xl"
+            className="hidden md:inline-flex shadow-sm hover:shadow-md bg-background/50 backdrop-blur-md border-border/80 mr-2 rounded-xl"
             title="Focus Mode"
           >
             Zen Mode
           </Button>
 
-          <div className="relative connect-dropdown z-50">
+          {/* Connect — hidden on mobile to prevent header overflow */}
+          <div className="relative connect-dropdown z-50 hidden md:block">
             <Button
               variant="outline"
               size="sm"
