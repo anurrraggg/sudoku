@@ -9,7 +9,7 @@ import { Numpad } from "./sudoku/numpad"
 import { StatsModal } from "./sudoku/stats-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Sun, Moon, Play, Pause, RotateCcw } from "lucide-react"
+import { Sun, Moon, Play, Pause, RotateCcw, Vibrate, VibrateOff } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function SudokuGame() {
@@ -30,6 +30,8 @@ export default function SudokuGame() {
     notesMode,
     isZenMode,
     setIsZenMode,
+    hapticEnabled,
+    setHapticEnabled,
     gameMode,
     isGenerating,
     isComplete,
@@ -196,6 +198,16 @@ export default function SudokuGame() {
               </div>
             )}
           </div>
+
+           <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setHapticEnabled(!hapticEnabled)}
+            className={`rounded-full w-10 h-10 shadow-sm hover:shadow-md backdrop-blur-md border-border/80 transition-colors ${hapticEnabled ? 'bg-primary/10 text-primary border-primary/30' : 'bg-background/50 text-muted-foreground'}`}
+            title={hapticEnabled ? "Disable Haptics" : "Enable Haptics"}
+          >
+            {hapticEnabled ? <Vibrate className="h-4 w-4" /> : <VibrateOff className="h-4 w-4" />}
+          </Button>
 
            <Button
             variant="outline"

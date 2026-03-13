@@ -18,7 +18,7 @@ export const Numpad = ({ inputNumber, disabled }: NumpadProps) => {
         <motion.div key={num} whileTap={disabled ? {} : { scale: 0.9 }}>
           <Button
             variant="outline"
-            className="w-full aspect-square text-3xl font-light rounded-2xl sm:rounded-3xl hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all duration-300 shadow-sm bg-card border-border/60 hover:shadow-md disabled:opacity-50"
+            className="w-full aspect-square text-2xl sm:text-3xl font-light rounded-2xl sm:rounded-3xl hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all duration-300 shadow-sm bg-card border-border/60 hover:shadow-md disabled:opacity-50"
             onClick={() => inputNumber(num)}
             disabled={disabled}
           >

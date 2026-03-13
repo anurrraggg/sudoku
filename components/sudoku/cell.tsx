@@ -69,7 +69,7 @@ export const Cell = memo(({
       onPointerEnter={onPointerEnter}
       className={`
         relative w-full aspect-square flex items-center justify-center 
-        text-xl md:text-3xl cursor-pointer select-none font-sans
+        text-[clamp(1rem,5vw,1.875rem)] cursor-pointer select-none font-sans
         touch-none /* prevent scrolling on mobile while dragging over cells */
         ${borderClasses} ${bgClass} ${textClass}
       `}
@@ -91,7 +91,7 @@ export const Cell = memo(({
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
               <div key={n} className="flex items-center justify-center">
                 {notes.has(n) && (
-                  <span className="text-[10px] md:text-xs font-medium text-[var(--color-sudoku-notes)] leading-none">
+                  <span className="text-[9px] md:text-xs font-medium text-[var(--color-sudoku-notes)] leading-none text-center">
                     {n}
                   </span>
                 )}

@@ -32,7 +32,8 @@ export interface SudokuState {
   mistakes: number;
 }
 
-export const triggerHaptic = (type: "light" | "heavy" | "success") => {
+export const triggerHaptic = (type: "light" | "heavy" | "success", enabled: boolean = true) => {
+  if (!enabled) return;
   if (typeof navigator !== "undefined" && navigator.vibrate) {
     if (type === "light") navigator.vibrate(10);
     else if (type === "heavy") navigator.vibrate([30, 50, 30]);
@@ -47,6 +48,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
   const [selectedCells, setSelectedCells] = useState<[number, number][]>([]);
   const [notesMode, setNotesMode] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
+  const [hapticEnabled, setHapticEnabled] = useState(true);
   const [gameMode, setGameMode] = useState<GameMode>("classic");
   
   const [state, setState] = useState<SudokuState>({
@@ -85,6 +87,17 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     if (isPlaying) stopTimer();
     else startTimer();
   }, [isPlaying, startTimer, stopTimer]);
+
+  useEffect(() => {
+    const savedHaptic = localStorage.getItem("sudoku-haptic");
+    if (savedHaptic !== null) {
+      setHapticEnabled(savedHaptic === "true");
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("sudoku-haptic", hapticEnabled.toString());
+  }, [hapticEnabled]);
 
   useEffect(() => {
     return stopTimer;
@@ -259,7 +272,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     if (!anyChanges) return;
 
     if (hapticPlayedStatus) {
-      triggerHaptic(hapticPlayedStatus);
+      triggerHaptic(hapticPlayedStatus, hapticEnabled);
     }
 
     const newConflicts = findConflicts(newUserGrid);
@@ -273,7 +286,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     });
 
     if (complete) {
-      triggerHaptic("success");
+      triggerHaptic("success", hapticEnabled);
       setIsComplete(true);
       stopTimer();
 
@@ -375,10 +388,10 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     });
     setHints(prev => prev + 1);
     setSelectedCells([[row, col]]);
-    triggerHaptic("light");
+    triggerHaptic("light", hapticEnabled);
 
     if (complete) {
-      triggerHaptic("success");
+      triggerHaptic("success", hapticEnabled);
       setIsComplete(true);
       stopTimer();
 
@@ -430,6 +443,8 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     notesMode,
     isZenMode,
     setIsZenMode,
+    hapticEnabled,
+    setHapticEnabled,
     gameMode,
     isGenerating,
     isComplete,
