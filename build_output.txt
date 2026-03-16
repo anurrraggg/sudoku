@@ -1,10 +1,21 @@
 
+>  @0.1.0 prebuild
+> node scripts/generate-icons.js
+
+Γ£ô Generated public/icons/icon-192.png (192├ù192)
+Γ£ô Generated public/icons/icon-512.png (512├ù512)
+Γ£ô Generated public/icons/apple-touch-icon.png (180├ù180)
+PWA icons ready.
+
 >  @0.1.0 build
 > next build
 
   Γû▓ Next.js 14.2.16
 
    Creating an optimized production build ...
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
  Γ£ô Compiled successfully
    Skipping validation of types
    Skipping linting
@@ -18,12 +29,12 @@
    Collecting build traces ...
 
 Route (app)                              Size     First Load JS
-Γöî Γùï /                                    54.6 kB         142 kB
-Γöö Γùï /_not-found                          873 B            88 kB
+Γöî Γùï /                                    71.2 kB         168 kB
+Γöö Γùï /_not-found                          873 B          88.1 kB
 + First Load JS shared by all            87.2 kB
-  Γö£ chunks/117-761fdcda7a7f2872.js       31.6 kB
-  Γö£ chunks/fd9d1056-6d4c8929044662da.js  53.6 kB
-  Γöö other shared chunks (total)          1.92 kB
+  Γö£ chunks/117-66a12c6b5c183364.js       31.6 kB
+  Γö£ chunks/fd9d1056-e91c955ab5bf966f.js  53.6 kB
+  Γöö other shared chunks (total)          1.99 kB
 
 
 Γùï  (Static)  prerendered as static content

@@ -14,7 +14,7 @@ import { recordGameResult } from '@/lib/player-stats';
 import { toast } from 'sonner';
 
 export type NotesGrid = Set<number>[][];
-export type GameMode = "classic" | "daily" | "builder";
+export type GameMode = "classic" | "daily" | "builder" | "multiplayer";
 
 function hashString(str: string) {
   let hash = 0;
@@ -198,6 +198,28 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     setIsComplete(false);
     setIsGenerating(false);
   }, [stopTimer, initEmptyNotes]);
+
+  const initMultiplayerGame = useCallback((initPuzzle: SudokuGrid, initSolution: SudokuGrid) => {
+    stopTimer();
+    setTime(0);
+    setHints(0);
+    setGameMode("multiplayer");
+    
+    setPuzzle(initPuzzle.map(r => [...r]));
+    setSolution(initSolution.map(r => [...r]));
+    setSelectedCells([]);
+    setState({
+      userGrid: initPuzzle.map(r => [...r]),
+      notes: initEmptyNotes(),
+      conflicts: new Set(),
+      mistakes: 0,
+    });
+    setHistory([]);
+    setRedoStack([]);
+    setIsComplete(false);
+    setIsGenerating(false);
+    startTimer();
+  }, [stopTimer, initEmptyNotes, startTimer]);
 
   const validateAndPlayBuilder = useCallback(() => {
     const sol = solveGrid(state.userGrid);
@@ -463,6 +485,10 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     startTimer();
   }, [puzzle, initEmptyNotes, startTimer]);
 
+  const progress = state.userGrid.reduce((acc, row, r) => {
+    return acc + row.filter((val, c) => val !== null && solution[r] && val === solution[r][c]).length;
+  }, 0);
+
   return {
     difficulty,
     setDifficulty,
@@ -484,9 +510,11 @@ export function useSudoku(initialDifficulty: Difficulty = 'medium') {
     hints,
     historySize: history.length,
     redoSize: redoStack.length,
+    progress,
     generateGame,
     startBuilderMode,
     validateAndPlayBuilder,
+    initMultiplayerGame,
     selectCell,
     inputNumber,
     clearCell,

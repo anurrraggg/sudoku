@@ -9,18 +9,35 @@ import { Numpad } from "./sudoku/numpad"
 import { StatsModal } from "./sudoku/stats-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Sun, Moon, Play, Pause, RotateCcw, Vibrate, VibrateOff } from "lucide-react"
+import { Sun, Moon, Play, Pause, RotateCcw, Vibrate, VibrateOff, Users, Link as LinkIcon, CheckCircle2 } from "lucide-react"
 import { motion } from "framer-motion"
+import { useMultiplayer } from "@/hooks/use-multiplayer"
+import { toast } from "sonner"
 
 export default function SudokuGame() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   
   const [showConnectDropdown, setShowConnectDropdown] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const {
+      peerId,
+      connection,
+      role,
+      opponent,
+      connectToHost,
+      disconnect,
+      sendProgress,
+      sendWinState,
+      sendInitialBoard,
+      onReceiveBoardRef
+    } = useMultiplayer();
 
   const {
     difficulty,
     setDifficulty,
     puzzle,
+    solution,
     userGrid,
     notes,
     conflicts,
@@ -40,9 +57,11 @@ export default function SudokuGame() {
     hints,
     historySize,
     redoSize,
+    progress,
     generateGame,
     startBuilderMode,
     validateAndPlayBuilder,
+    initMultiplayerGame,
     selectCell,
     inputNumber,
     clearCell,
@@ -91,8 +110,72 @@ export default function SudokuGame() {
     }
   }, [])
 
+  // Handle URL param for joining multiplayer game
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const challengeId = urlParams.get('challenge');
+    if (challengeId && peerId && !connection && !role) {
+      connectToHost(challengeId);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [peerId, connection, role, connectToHost]);
+
+  // Set up receiving board for guest
+  useEffect(() => {
+    onReceiveBoardRef.current = (puz, sol) => {
+      initMultiplayerGame(puz, sol);
+      toast.success("Connected to Host!", { description: "Puzzle loaded. First to solve wins!" });
+    };
+  }, [initMultiplayerGame, onReceiveBoardRef]);
+
+  // Send initial board if host
+  useEffect(() => {
+    if (role === "host" && connection && gameMode === "multiplayer" && puzzle.length > 0 && solution.length > 0) {
+      sendInitialBoard(puzzle, solution);
+      toast.success("Opponent joined!", { description: "Match started! First to solve wins!" });
+    }
+  }, [role, connection, gameMode, puzzle, solution, sendInitialBoard]);
+
+  // Sync progress
+  useEffect(() => {
+    if (connection && gameMode === "multiplayer") {
+      sendProgress(progress);
+    }
+  }, [progress, connection, gameMode, sendProgress]);
+
+  // Sync win state
+  useEffect(() => {
+    if (connection && gameMode === "multiplayer" && isComplete && conflicts.size === 0) {
+      sendWinState();
+    }
+  }, [isComplete, conflicts.size, connection, gameMode, sendWinState]);
+
+  // Handle Opponent Win
+  useEffect(() => {
+    if (opponent.hasWon && !isComplete) {
+       toast.error("You Lost!", { description: "Your opponent completed the puzzle first.", duration: 10000 });
+    }
+  }, [opponent.hasWon, isComplete]);
+
+  const handleChallengeFriend = async () => {
+    // We only need to set gameMode to multiplayer and generate a board.
+    // We get role="host" internally since we are not connecting to anyone.
+    // Wait, the host role is set when someone connects to us, not beforehand.
+    // In our UI, if we generate a multiplayer game, we show the invite link.
+    await generateGame("hard", "multiplayer");
+  };
+
+  const copyLink = () => {
+    if (!peerId) return;
+    const url = `${window.location.origin}${window.location.pathname}?challenge=${peerId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // Initialize first game automatically
   useEffect(() => {
+    if (window.location.search.includes('challenge')) return;
     generateGame(difficulty)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty])
@@ -322,6 +405,63 @@ export default function SudokuGame() {
 
         {/* RIGHT COLUMN: SETTINGS & STATS */}
         <div className={`flex flex-col gap-6 w-full lg:sticky lg:top-8 mt-8 lg:mt-0 transition-opacity duration-500 ${isZenMode ? 'hidden' : 'opacity-100'}`}>
+           
+           {gameMode === "multiplayer" && !connection && (
+             <Card className="border-primary/20 bg-primary/5 shadow-xl rounded-[2rem] overflow-hidden">
+               <CardContent className="pt-8 px-8 pb-8 flex flex-col gap-4 text-center items-center">
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
+                    <Users className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Waiting for opponent...</h3>
+                  <p className="text-sm text-muted-foreground">Share this link with your friend to start the match.</p>
+                  <Button 
+                    onClick={copyLink} 
+                    className="w-full rounded-2xl h-12 mt-2 shadow-md bg-background text-foreground hover:bg-muted border border-border/40"
+                    variant="outline"
+                  >
+                    {copied ? <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" /> : <LinkIcon className="mr-2 h-4 w-4" />}
+                    {copied ? "Copied Link!" : "Copy Challenge Link"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => generateGame("medium", "classic")} className="text-muted-foreground w-full">Cancel</Button>
+               </CardContent>
+             </Card>
+           )}
+
+           {connection && gameMode === "multiplayer" && (
+             <Card className="border-border/40 bg-card/40 backdrop-blur-xl rounded-[2rem] overflow-hidden shadow-lg border-2 border-primary/20">
+               <CardHeader className="pb-4 bg-muted/30 border-b border-border/20 px-6 pt-6">
+                 <CardTitle className="text-lg font-bold flex items-center gap-2">
+                   <Users className="h-5 w-5 text-primary" /> Multiplayer Match
+                 </CardTitle>
+               </CardHeader>
+               <CardContent className="pt-6 px-6 pb-6 flex flex-col gap-5">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold text-foreground/80">You</span>
+                      <span className="font-mono">{progress}/81</span>
+                    </div>
+                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary transition-all duration-300 ease-out" style={{ width: `${(progress / 81) * 100}%` }} />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold text-foreground/80">Opponent {opponent.stats ? `(Won ${opponent.stats.gamesPlayed})` : ''}</span>
+                      <span className="font-mono">{opponent.progress}/81</span>
+                    </div>
+                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 transition-all duration-300 ease-out" style={{ width: `${(opponent.progress / 81) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  <Button variant="outline" onClick={() => { disconnect(); generateGame("medium", "classic"); }} className="w-full rounded-xl border-red-500/30 text-red-500 hover:bg-red-500/10 hover:text-red-500/90 mt-2">
+                    End Match
+                  </Button>
+               </CardContent>
+             </Card>
+           )}
+
            <Card className="border-border/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card/40 backdrop-blur-xl rounded-[2rem] overflow-hidden">
              <CardHeader className="pb-4 bg-muted/30 border-b border-border/20 px-8 pt-8">
                <CardTitle className="text-xl font-bold">Game Setup</CardTitle>
@@ -355,19 +495,26 @@ export default function SudokuGame() {
                   <Button 
                     className={`w-full rounded-2xl h-14 text-base font-bold shadow-lg active:scale-[0.98] transition-all bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white ${gameMode === "daily" ? 'ring-2 ring-offset-2 ring-purple-500 ring-offset-background' : ''}`}
                     onClick={() => generateGame("hard", "daily")}
-                    disabled={isGenerating}
+                    disabled={isGenerating || connection !== null}
                   >
                     Daily Challenge
+                  </Button>
+                  <Button 
+                    className={`w-full rounded-2xl h-14 text-base font-bold shadow-lg active:scale-[0.98] transition-all bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white ${gameMode === "multiplayer" ? 'ring-2 ring-offset-2 ring-blue-500 ring-offset-background' : ''}`}
+                    onClick={handleChallengeFriend}
+                    disabled={isGenerating || connection !== null}
+                  >
+                    <Users className="mr-2 h-5 w-5 inline-block" /> Challenge a Friend
                   </Button>
                   <Button 
                     variant="outline"
                     className={`w-full rounded-2xl h-14 text-base font-bold shadow-sm active:scale-[0.98] transition-all border-border/60 ${gameMode === "builder" ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent hover:bg-muted/30'}`}
                     onClick={startBuilderMode}
-                    disabled={isGenerating}
+                    disabled={isGenerating || connection !== null}
                   >
                     Custom Builder
                   </Button>
-                  {gameMode !== "builder" && (
+                  {gameMode !== "builder" && gameMode !== "multiplayer" && (
                     <Button 
                       variant="outline" 
                       className="w-full rounded-2xl h-14 text-base font-semibold active:scale-[0.98] transition-all border-border/60 bg-transparent hover:bg-muted/30 mt-2"
