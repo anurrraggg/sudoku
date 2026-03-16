@@ -23,6 +23,7 @@ export default function SudokuGame() {
   const {
       peerId,
       connection,
+      isConnected,
       role,
       opponent,
       connectToHost,
@@ -130,11 +131,11 @@ export default function SudokuGame() {
 
   // Send initial board if host
   useEffect(() => {
-    if (role === "host" && connection && gameMode === "multiplayer" && puzzle.length > 0 && solution.length > 0) {
+    if (role === "host" && isConnected && gameMode === "multiplayer" && puzzle.length > 0 && solution.length > 0) {
       sendInitialBoard(puzzle, solution);
       toast.success("Opponent joined!", { description: "Match started! First to solve wins!" });
     }
-  }, [role, connection, gameMode, puzzle, solution, sendInitialBoard]);
+  }, [role, isConnected, gameMode, puzzle, solution, sendInitialBoard]);
 
   // Sync progress
   useEffect(() => {

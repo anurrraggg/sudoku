@@ -21,6 +21,7 @@ export interface OpponentData {
 export function useMultiplayer() {
   const [peerId, setPeerId] = useState<string | null>(null);
   const [connection, setConnection] = useState<DataConnection | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const [role, setRole] = useState<MultiplayerRole>(null);
   const [opponent, setOpponent] = useState<OpponentData>({
     stats: null,
@@ -69,6 +70,7 @@ export function useMultiplayer() {
     
     conn.on('open', () => {
       console.log('Connected to peer');
+      setIsConnected(true);
       // Send initial stats when connected
       const stats = {
           winStreak: parseInt(localStorage.getItem('sudoku-win-streak') || '0'),
@@ -94,6 +96,7 @@ export function useMultiplayer() {
     conn.on('close', () => {
       console.log('Connection closed');
       setConnection(null);
+      setIsConnected(false);
       setRole(null);
     });
   };
@@ -140,6 +143,7 @@ export function useMultiplayer() {
   return {
     peerId,
     connection,
+    isConnected,
     role,
     opponent,
     connectToHost,
